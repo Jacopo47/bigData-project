@@ -19,9 +19,15 @@ repositories {
 }
 
 dependencies {
+    // https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-common
+    compile group: 'org.apache.hadoop', name: 'hadoop-common', version: '2.6.0-cdh5.13.1'
+    // https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-core
+    compile group: 'org.apache.hadoop', name: 'hadoop-core', version: '2.6.0-mr1-cdh5.13.1'
+    // https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-hdfs
+    compile group: 'org.apache.hadoop', name: 'hadoop-hdfs', version: '2.6.0-cdh5.13.1'
+
     // This dependency is exported to consumers, that is to say found on their compile classpath.
     // api 'org.apache.commons:commons-math3:3.6.1'
-
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
     implementation 'com.google.guava:guava:21.0'
     implementation 'org.apache.commons:commons-math3:3.6.1'
