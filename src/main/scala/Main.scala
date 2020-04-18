@@ -5,6 +5,7 @@ import spark.SparkJob
 object Main extends App {
   val SPARK_JOB_TYPE = "0"
   val SPARK_SQL_JOB_TYPE = "1"
+  val MAP_REDUCE_JOB_TYPE = "2"
 
   val argsAsList = args.toSeq
 
@@ -24,6 +25,7 @@ object Main extends App {
     jobType match {
       case SPARK_JOB_TYPE => SparkJob.classicSparkJob(csvFilePath)
       case SPARK_SQL_JOB_TYPE => SparkJob.sparkSql(csvFilePath)
+      case MAP_REDUCE_JOB_TYPE => new MapReduceJob().start(csvFilePath, Utils.DATASET_PATH)
 
       case _ => SparkJob.classicSparkJob(csvFilePath)
     }
