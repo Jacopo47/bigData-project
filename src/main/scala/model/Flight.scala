@@ -18,10 +18,7 @@ object Flight {
     }
 
     try {
-      val columns: List[String] = List()
-      for (col <- row.split(",")) {
-        columns :+ col.replaceAll("\"", "")
-      }
+      val columns = row.split(",").map(_.replaceAll("\"", ""))
 
       val year = getInt(columns.head)
       val airline = columns(4)

@@ -1,6 +1,6 @@
 package spark
 
-import model.{Airline, Flight, Log, Utils}
+import model.{Airline, Utils, Flight}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SQLContext, SparkSession}
