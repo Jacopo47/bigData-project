@@ -33,10 +33,10 @@ public class MapReduceJob {
         String outputDirectoryMainJob = outputDirectory + "/mr-output";
         jobs.add(createMainJob(configuration, csvFilePath, outputDirectoryMainJob));
 
-        String outputDirectorySortJob = outputDirectoryMainJob + "/sorted";
-        jobs.add(createSortJob(configuration, outputDirectoryMainJob, outputDirectorySortJob));
+        String outputDirectoryJoinJob = outputDirectoryMainJob + "/joined";
+        jobs.add(createJoinSort(configuration, outputDirectoryMainJob, outputDirectoryJoinJob));
 
-        jobs.add(createJoinSort(configuration, outputDirectorySortJob, outputDirectory + "/final"));
+        jobs.add(createSortJob(configuration, outputDirectoryJoinJob, outputDirectory + "/final"));
 
         for (Job job : jobs) {
             if (!job.waitForCompletion(true)) {

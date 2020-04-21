@@ -41,11 +41,13 @@ object SparkJob {
     val flightDelayKpiByAirline = rddFlights
       .aggregateByKey(initialValue)(combiningFunction, mergingFunction)
       .map({ case (k, v) => (k, v._1 / v._2) })
-      .sortBy(_._2, false)
 
     val rddAirlines = getAirlines(sc)
 
-    val result = rddAirlines.join(flightDelayKpiByAirline)
+    val result = rddAirlines
+      .join(flightDelayKpiByAirline)
+        .map({ case (_, v) => v })
+        .sortBy(_._2)
 
     result.collect foreach println
   }
