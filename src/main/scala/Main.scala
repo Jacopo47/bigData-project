@@ -6,6 +6,7 @@ object Main extends App {
   val SPARK_JOB_TYPE = "0"
   val SPARK_SQL_JOB_TYPE = "1"
   val MAP_REDUCE_JOB_TYPE = "2"
+  val SPARK_STREAMING_JOB_TYPE = "3"
 
   val argsAsList = args.toSeq
 
@@ -14,20 +15,27 @@ object Main extends App {
     case None => "0"
   }
 
-  val csvFilePath = Utils.DATASET_PATH + (argsAsList.lift(1) match {
-    case Some(fileName) => fileName
+  val path = Utils.DATASET_PATH + (argsAsList.lift(1) match {
+    case Some(fileName) => fileName match {
+      case "." => Utils.DEFAULT_FILE_FLIGHTS
+      case _ => fileName
+    }
     case None => Utils.DEFAULT_FILE_FLIGHTS
   })
+
+  val logLevel = argsAsList.lift(2)
+  Log.setLevel(logLevel)
 
   val startTime = new DateTime()
   Log.info("Starting job at: " + startTime.toString("HH:mm"))
   try {
     jobType match {
-      case SPARK_JOB_TYPE => SparkJob.classicSparkJob(csvFilePath)
-      case SPARK_SQL_JOB_TYPE => SparkJob.sparkSql(csvFilePath)
-      case MAP_REDUCE_JOB_TYPE => new MapReduceJob().start(csvFilePath, Utils.DATASET_PATH)
+      case SPARK_JOB_TYPE => SparkJob("BigDataProject - Spark2", logLevel).classicSparkJob(path)
+      case SPARK_SQL_JOB_TYPE => SparkJob("BigDataProject - SparkSql", logLevel).sparkSql(path)
+      case MAP_REDUCE_JOB_TYPE => new MapReduceJob().start(path, Utils.DATASET_PATH)
+      case SPARK_STREAMING_JOB_TYPE => SparkJob("BigDataProject - Spark Streaming", logLevel).sparkStreaming(path)
 
-      case _ => SparkJob.classicSparkJob(csvFilePath)
+      case _ => SparkJob("BigDataProject - Spark2", logLevel).classicSparkJob(path)
     }
   } catch {
     case ex: Exception => Log.error(s"Error during job running. Details: ${ex.getMessage}\n${ex.printStackTrace()}")
