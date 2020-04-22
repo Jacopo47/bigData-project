@@ -1,13 +1,20 @@
 package model
 
-import org.apache.log4j.lf5.LogLevel
-import org.apache.log4j.{Level, LogManager}
+import org.apache.log4j.{Level, LogManager, Logger}
 
 
 object Log {
   private val logger = LogManager.getLogger(Log.getClass)
 
+  def setRootLevel(logLevel: Option[String]): Unit = {
+    setLevel(logLevel, Logger.getRootLogger)
+  }
+
   def setLevel(logLevel: Option[String]): Unit = {
+    setLevel(logLevel, logger)
+  }
+
+  private def setLevel(logLevel: Option[String], logger: Logger): Unit = {
     val level: String = logLevel.getOrElse("INFO")
 
     val selectedLevel: Level = level match {

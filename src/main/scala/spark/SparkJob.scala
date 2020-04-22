@@ -1,10 +1,12 @@
 package spark
 
-import model.{Airline, Flight, Utils}
+import model.{Airline, Flight, SparkElements, Utils}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SQLContext, SparkSession}
-import org.apache.spark.storage.StorageLevel
+import org.apache.spark.streaming.dstream.DStream
+import org.apache.spark.streaming.{Seconds, StreamingContext, Time}
+import spark.SparkJob.{getAirlines, getFlights}
 
 object SparkJob {
   private val getAirlines = (sc: SparkContext) => {
@@ -22,14 +24,19 @@ object SparkJob {
       .map(_.get)
   }
 
-  def classicSparkJob(csvFilePath: String): Unit = {
-    val sc: SparkContext = SparkSession.builder.appName("BigDataProject - Spark2").getOrCreate().sparkContext
 
-    val rddFlights = getFlights(sc, csvFilePath)
-      .filter(!_.cancelled)
-      .filter(_.arrivalDelay > 0)
-      .map(flight => (flight.iataCode, flight))
+  def apply(contextName: String, logLevel: Option[String]): SparkJob = {
+    val sparkSession = SparkSession.builder.appName(contextName).getOrCreate()
+    val sparkContext = sparkSession.sparkContext
 
+    sparkContext.setLogLevel(logLevel.getOrElse("INFO"))
+
+    new SparkJob(SparkElements(sparkSession, sparkContext))
+  }
+}
+
+class SparkJob(sparkElements: SparkElements) {
+  private val aggregateFlights: RDD[(String, Flight)] => RDD[(String, Double)] = (flights: RDD[(String, Flight)]) => {
     val initialValue = (0.0, 0.0)
     val combiningFunction: ((Double, Double), Flight) => (Double, Double) = (accumulator: (Double, Double), flight: Flight) => {
       (accumulator._1 + flight.arrivalDelay, accumulator._2 + flight.distance)
@@ -39,24 +46,36 @@ object SparkJob {
     }
 
 
-    val flightDelayKpiByAirline = rddFlights
+    flights
       .aggregateByKey(initialValue)(combiningFunction, mergingFunction)
       .map({ case (k, v) => (k, v._1 / v._2) })
+  }
 
+  def classicSparkJob(csvFilePath: String): Unit = {
+    val sc: SparkContext = sparkElements.sparkContext
+
+    val rddFlights: RDD[(String, Flight)] = getFlights(sc, csvFilePath)
+      .filter(!_.cancelled)
+      .filter(_.arrivalDelay > 0)
+      .map(flight => (flight.iataCode, flight))
+
+
+    val flightDelayKpiByAirline = aggregateFlights(rddFlights)
     val rddAirlines = getAirlines(sc)
 
     val result = rddAirlines
       .join(flightDelayKpiByAirline)
-        .map({ case (_, v) => v })
-        .sortBy(_._2)
+      .map({ case (_, v) => v })
+      .sortBy(_._2)
 
     result.collect foreach println
   }
 
   def sparkSql(csvFilePath: String): Unit = {
-    val sparkSession: SparkSession = SparkSession.builder.appName("BigDataProject - Spark2 SQL").getOrCreate()
+    val sparkSession: SparkSession = sparkElements.sparkSession
     sparkSession.sql("use default")
     val sc: SparkContext = sparkSession.sparkContext
+
     val sqlContext: SQLContext = sparkSession.sqlContext
     import org.apache.spark.sql.functions._
     import sqlContext.implicits._
@@ -77,25 +96,36 @@ object SparkJob {
     dfJoin.collect foreach println
   }
 
-  def sparkStreaming(csvFilePath: String): Unit = {
-    def exercise4(sc: SparkContext, host: String, port: Int, path: String): Unit = {
-      def updateFunction( newValues: Seq[Int], oldValue: Option[Int] ): Option[Int] = {
-        Some(oldValue.getOrElse(0) + newValues.sum)
-      }
+  def sparkStreaming(monitoredDirectory: String): Unit = {
+    val sparkSession: SparkSession = sparkElements.sparkSession
+    val sc: SparkContext = sparkSession.sparkContext
 
-      def functionToCreateContext(): StreamingContext = {
-        val newSsc = new StreamingContext(sc, Seconds(3))
-        val lines = newSsc.socketTextStream(host,port,StorageLevel.MEMORY_AND_DISK_SER)
-        val words = lines.flatMap(_.split(" "))
-        val cumulativeWordCounts = words.map(x => (x, 1)).updateStateByKey(updateFunction)
-        cumulativeWordCounts.map({case(k,v)=>(v,k)}).transform({ rdd => rdd.sortByKey(false) }).print()
-        newSsc.checkpoint(path)
-        newSsc
+    def updateFunction(newValues: Seq[Double], oldValue: Option[(String, Double)]): Option[(String, Double)] = {
+      oldValue match {
+        case Some(old) => Some(old._1, old._2 + newValues.sum)
+        case None => None
       }
-
-      val ssc = StreamingContext.getOrCreate(path, functionToCreateContext _)
-      ssc.start()
-      ssc.awaitTermination()
     }
+
+    val newSsc = new StreamingContext(sc, Seconds(3))
+    val flights: DStream[(String, Flight)] = newSsc
+      .textFileStream(monitoredDirectory)
+      .map(Flight.extract)
+      .filter(_.isDefined)
+      .map(_.get)
+      .filter(!_.cancelled)
+      .filter(_.arrivalDelay > 0)
+      .map(flight => (flight.iataCode, flight))
+
+    val result: DStream[(String, Double)] = flights.transform(rddFlights => {
+      aggregateFlights(rddFlights)
+    })
+
+    //val rank = result.map(e => (e._1, e._2)).updateStateByKey(updateFunction)
+
+    result.print()
+
+    newSsc.start()
+    newSsc.awaitTermination()
   }
 }
