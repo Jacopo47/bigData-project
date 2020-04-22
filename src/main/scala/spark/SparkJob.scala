@@ -1,9 +1,10 @@
 package spark
 
-import model.{Airline, Utils, Flight}
+import model.{Airline, Flight, Utils}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SQLContext, SparkSession}
+import org.apache.spark.storage.StorageLevel
 
 object SparkJob {
   private val getAirlines = (sc: SparkContext) => {
@@ -74,5 +75,27 @@ object SparkJob {
     val dfJoin = sparkSession.sql("SELECT a.airline, f.KPI FROM flights AS f, airlines AS a WHERE a.iataCode = f.iataCode ORDER BY f.KPI")
 
     dfJoin.collect foreach println
+  }
+
+  def sparkStreaming(csvFilePath: String): Unit = {
+    def exercise4(sc: SparkContext, host: String, port: Int, path: String): Unit = {
+      def updateFunction( newValues: Seq[Int], oldValue: Option[Int] ): Option[Int] = {
+        Some(oldValue.getOrElse(0) + newValues.sum)
+      }
+
+      def functionToCreateContext(): StreamingContext = {
+        val newSsc = new StreamingContext(sc, Seconds(3))
+        val lines = newSsc.socketTextStream(host,port,StorageLevel.MEMORY_AND_DISK_SER)
+        val words = lines.flatMap(_.split(" "))
+        val cumulativeWordCounts = words.map(x => (x, 1)).updateStateByKey(updateFunction)
+        cumulativeWordCounts.map({case(k,v)=>(v,k)}).transform({ rdd => rdd.sortByKey(false) }).print()
+        newSsc.checkpoint(path)
+        newSsc
+      }
+
+      val ssc = StreamingContext.getOrCreate(path, functionToCreateContext _)
+      ssc.start()
+      ssc.awaitTermination()
+    }
   }
 }
