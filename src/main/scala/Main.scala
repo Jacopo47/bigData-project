@@ -35,12 +35,12 @@ object Main extends App {
   Log.info("Starting job at: " + startTime.toString("HH:mm"))
   try {
     jobType match {
-      case SPARK_JOB_TYPE => SparkJob("BigDataProject - Spark2", contextLogLevel).classicSparkJob(path)
-      case SPARK_SQL_JOB_TYPE => SparkJob("BigDataProject - SparkSql", contextLogLevel).sparkSql(path)
+      case SPARK_JOB_TYPE => SparkJob.classicSparkJob(path, SparkJob.getSparkElements("BigDataProject - Spark2", contextLogLevel))
+      case SPARK_SQL_JOB_TYPE => SparkJob.sparkSql(path, SparkJob.getSparkElements("BigDataProject - SparkSql", contextLogLevel))
       case MAP_REDUCE_JOB_TYPE => new MapReduceJob().start(path, Utils.DATASET_PATH)
       case SPARK_STREAMING_JOB_TYPE => SparkJob.sparkStreaming2(path, SparkJob.getSparkElements("BigDataProject - Spark Streaming", contextLogLevel))
 
-      case _ => SparkJob("BigDataProject - Spark2", contextLogLevel).classicSparkJob(path)
+      case _ => SparkJob.classicSparkJob(path, SparkJob.getSparkElements("BigDataProject - Spark2", contextLogLevel))
     }
   } catch {
     case ex: Exception => Log.error(s"Error during job running. Details: ${ex.getMessage}\n${ex.printStackTrace()}")

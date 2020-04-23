@@ -17,3 +17,4 @@ object Airline {
 }
 
 case class Airline(iataCode: String, airline: String)
+case class AirlineStatistics(totalArrivalDelay: Double, totalDistance: Double, kpi: Double)
