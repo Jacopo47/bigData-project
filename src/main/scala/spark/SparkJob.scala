@@ -1,7 +1,7 @@
 package spark
 
 import model._
-import org.apache.spark.SparkContext
+import org.apache.spark.{HashPartitioner, SparkContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SQLContext, SparkSession}
 import org.apache.spark.streaming.dstream.DStream
@@ -64,6 +64,7 @@ object SparkJob {
       .filter(!_.cancelled)
       .filter(_.arrivalDelay > 0)
       .map(flight => (flight.iataCode, flight))
+      .partitionBy(new HashPartitioner(8))
 
 
     val flightDelayKpiByAirline = aggregateFlights(rddFlights)
