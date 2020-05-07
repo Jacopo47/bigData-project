@@ -47,10 +47,6 @@ object SparkJob {
       .map({ case (k, v) => (k, AirlineStatistics(v._1, v._2, v._1 / v._2)) })
   }
 
-  def apply(contextName: String, logLevel: Option[String]): SparkJob = {
-    new SparkJob(getSparkElements(contextName, logLevel))
-  }
-
   def getSparkElements(contextName: String, logLevel: Option[String]): SparkElements = {
     val sparkSession = SparkSession.builder.appName(contextName).getOrCreate()
     val sparkContext = sparkSession.sparkContext
@@ -124,13 +120,11 @@ object SparkJob {
         .filter(_.arrivalDelay > 0)
         .map(flight => (flight.iataCode, flight))
 
-      Log.error("EHI - 2")
-
       try {
         val result: DStream[(String, AirlineStatistics)] = flights.transform(rddFlights => {
           aggregateFlightsInStatistics(rddFlights)
         })
-        Log.error("EHI - 3")
+
         val rank = result.map(e => (e._1, e._2)).updateStateByKey((newValues: Seq[AirlineStatistics], oldValue: Option[AirlineStatistics]) => {
           val valuesSum = newValues.reduceLeftOption((a, b) => AirlineStatistics(a.totalArrivalDelay + b.totalArrivalDelay, a.totalDistance + b.totalDistance, 0)).getOrElse(AirlineStatistics(0, 0, 0))
           oldValue match {
@@ -145,8 +139,6 @@ object SparkJob {
         case ex: Exception => Log.debug(ex.getMessage)
       }
 
-      Log.error("EHI - 4")
-
       newSsc.checkpoint(checkpointDirectory)
       newSsc
     }
@@ -155,9 +147,4 @@ object SparkJob {
     ssc.start()
     ssc.awaitTermination()
   }
-}
-
-class SparkJob(sparkElements: SparkElements) {
-
-
 }
