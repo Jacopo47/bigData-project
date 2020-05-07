@@ -68,7 +68,7 @@ object SparkJob {
 
 
     val flightDelayKpiByAirline = aggregateFlights(rddFlights)
-    val rddAirlines = getAirlines(sc)
+    val rddAirlines = getAirlines(sc).partitionBy(new HashPartitioner(1))
 
     val result = rddAirlines
       .join(flightDelayKpiByAirline)
